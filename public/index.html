@@ -18,13 +18,11 @@ h2 {
   margin: 8px 0;
 }
 
-/* GRID PC */
 .grid {
   display: grid;
   grid-template-columns: repeat(4, 180px);
   gap: 15px;
   justify-content: center;
-  margin-top: 10px;
 }
 
 /* CONTENEDOR */
@@ -32,92 +30,60 @@ h2 {
   width: 180px;
 }
 
-/* SILO */
-svg {
-  width: 170px;
-  height: 210px;
+/* SOLO VISUAL */
+.silo-visual {
+  position: relative;
+}
+
+/* IMAGEN */
+.silo-img {
+  width: 100%;
+  display: block;
+}
+
+/* COLOR SOLO SOBRE SILO */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 /* TEXTO */
-.texto {
-  fill: white;
-  font-size: 11px;
+.info {
+  position: absolute;
+  top: 40%;
+  width: 100%;
+  color: white;
   font-weight: bold;
-  text-anchor: middle;
+  text-shadow: 1px 1px 4px black;
 }
 
 /* CONTROLES */
 .controles {
   background: #fff;
-  padding: 4px;
+  padding: 5px;
   border-radius: 6px;
+  margin-top: 5px;
 }
 
-input {
-  width: 95%;
-  padding: 4px;
-  font-size: 12px;
-  margin-top: 3px;
-}
-
-button {
+input, button {
   width: 95%;
   margin-top: 4px;
   padding: 6px;
-  border: none;
-  border-radius: 5px;
+}
+
+button {
   cursor: pointer;
-  font-size: 12px;
 }
 
-button:disabled {
-  background: #ccc;
-}
-
-.ocupar {
-  background: #e74c3c;
-  color: white;
-}
-
-.liberar {
-  background: #2ecc71;
-  color: white;
-}
-
-/* 📱 MODO CELULAR */
 @media (max-width: 768px) {
-
   .grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
     padding: 10px;
-  }
-
-  .silo-container {
-    width: 100%;
-  }
-
-  svg {
-    width: 100%;
-    height: 200px;
-  }
-
-  .texto {
-    font-size: 13px;
-  }
-
-  input {
-    font-size: 14px;
-    padding: 6px;
-  }
-
-  button {
-    font-size: 14px;
-    padding: 8px;
-  }
-
-  h2 {
-    font-size: 18px;
   }
 }
 </style>
@@ -129,11 +95,7 @@ button:disabled {
 <div id="grid" class="grid"></div>
 
 <script>
-let silos = Array.from({ length: 8 }, () => ({
-  estado: "Libre",
-  variedad: "",
-  kilos: ""
-}));
+let silos = [];
 
 const socket = io();
 
@@ -148,12 +110,11 @@ socket.on("estadoActualizado", (data) => {
 });
 
 function color(estado) {
-  return estado === "Libre" ? "#2ecc71" : "#e74c3c";
+  return estado === "Libre" ? "green" : "red";
 }
 
 function formatearKilos(valor) {
-  if (!valor) return "";
-  return Number(valor).toLocaleString("es-AR") + " kg";
+  return valor ? Number(valor).toLocaleString("es-AR") + " kg" : "";
 }
 
 function render() {
@@ -161,34 +122,32 @@ function render() {
   grid.innerHTML = "";
 
   silos.forEach((silo, i) => {
-    const ocupado = silo.estado === "Ocupado";
-
     const div = document.createElement("div");
     div.className = "silo-container";
 
     div.innerHTML = `
-      <svg viewBox="0 0 100 140">
-        <rect x="20" y="30" width="60" height="70" fill="${color(silo.estado)}" stroke="black" stroke-width="2"/>
-        <polygon points="20,30 50,5 80,30" fill="${color(silo.estado)}" stroke="black" stroke-width="2"/>
-        <rect x="25" y="100" width="50" height="25" fill="${color(silo.estado)}" stroke="black" stroke-width="2"/>
+      <div class="silo-visual">
+        <img src="silo.png" class="silo-img"/>
+        <div class="overlay" style="background-color:${color(silo.estado)}"></div>
 
-        <text x="50" y="50" class="texto">Silo ${i+1}</text>
-        <text x="50" y="65" class="texto">${silo.estado}</text>
-        <text x="50" y="80" class="texto">${silo.variedad || "-"}</text>
-        <text x="50" y="95" class="texto">${formatearKilos(silo.kilos)}</text>
-      </svg>
+        <div class="info">
+          Silo ${i+1}<br>
+          ${silo.variedad || "-"}<br>
+          ${formatearKilos(silo.kilos)}
+        </div>
+      </div>
 
       <div class="controles">
-        <input id="var-${i}" placeholder="Variedad..." ${ocupado ? "disabled" : ""} />
-        <input id="kg-${i}" type="number" placeholder="Kilos..." ${ocupado ? "disabled" : ""} />
+        <input id="var-${i}" 
+          placeholder="Variedad..." 
+          value="${silo.variedad || ""}"
+          ${silo.estado === "Ocupado" ? "disabled" : ""}
+/>
 
-        <button class="ocupar" onclick="ocupar(${i})" ${ocupado ? "disabled" : ""}>
-          Ocupar
-        </button>
+        <input id="kg-${i}" type="number" placeholder="Kilos a cargar..." />
 
-        <button class="liberar" onclick="liberar(${i})">
-          Liberar
-        </button>
+        <button onclick="cargar(${i})">Cargar</button>
+        <button onclick="liberar(${i})">Vaciar</button>
       </div>
     `;
 
@@ -196,44 +155,51 @@ function render() {
   });
 }
 
-function ocupar(i) {
-  const variedad = document.getElementById(`var-${i}`).value;
-  const kilos = document.getElementById(`kg-${i}`).value;
+function cargar(i) {
+  const variedadInput = document.getElementById(`var-${i}`).value.trim();
+  const kilos = Number(document.getElementById(`kg-${i}`).value);
 
-  if (!variedad || !kilos) {
-    alert("Ingresar variedad y kilos");
+  if (!kilos) {
+    alert("Ingresar kilos");
     return;
   }
 
-  if (silos[i].estado === "Ocupado") {
-    alert("El silo ya se encuentra ocupado");
-    return;
+  const siloActual = silos[i];
+
+  // 🔴 BLOQUEO DE VARIEDAD
+  if (siloActual.estado === "Ocupado") {
+    if (variedadInput && variedadInput !== siloActual.variedad) {
+      alert("⚠️ No se puede cambiar la variedad. Primero vaciá el silo.");
+      return;
+    }
   }
 
-  actualizar(i, {
+  const nuevaVariedad = siloActual.variedad || variedadInput || "Sin especificar";
+
+  const nuevoSilo = {
     estado: "Ocupado",
-    variedad,
-    kilos
+    variedad: nuevaVariedad,
+    kilos: (siloActual.kilos || 0) + kilos
+  };
+
+  socket.emit("actualizarSilo", {
+    index: i,
+    data: nuevoSilo
   });
 }
 
 function liberar(i) {
-  if (!confirm("¿Seguro que querés liberar el silo?")) return;
+  if (!confirm("¿Vaciar silo?")) return;
 
-  actualizar(i, {
-    estado: "Libre",
-    variedad: "",
-    kilos: ""
+  socket.emit("actualizarSilo", {
+    index: i,
+    data: {
+      estado: "Libre",
+      variedad: "",
+      kilos: 0
+    }
   });
 }
-
-function actualizar(i, data) {
-  silos[i] = data;
-  render();
-  socket.emit("actualizarSilo", { index: i, data });
-}
-
-render();
 </script>
 
 </body>
