@@ -9,33 +9,74 @@
 body {
   font-family: Arial;
   text-align: center;
+  background: #f0f2f5;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(2, 150px);
-  gap: 15px;
+  grid-template-columns: repeat(4, 180px);
+  gap: 30px;
   justify-content: center;
   margin-top: 20px;
 }
 
-.silo {
-  border: 2px solid #333;
-  padding: 20px;
-  cursor: pointer;
-  border-radius: 10px;
-  font-size: 14px;
+.silo-container {
+  width: 180px;
 }
 
-.libre { background: #ccffcc; }
-.ocupado { background: #ffcccc; }
+svg {
+  width: 180px;
+  height: 240px;
+}
+
+.texto {
+  fill: white;
+  font-size: 12px;
+  font-weight: bold;
+  text-anchor: middle;
+}
+
+.controles {
+  background: #fff;
+  padding: 5px;
+}
+
+input {
+  width: 95%;
+  padding: 5px;
+  margin-top: 3px;
+}
+
+button {
+  width: 95%;
+  margin-top: 5px;
+  padding: 6px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.ocupar {
+  background: #e74c3c;
+  color: white;
+}
+
+.liberar {
+  background: #2ecc71;
+  color: white;
+}
 </style>
 </head>
+
 <body>
 
 <h2>Estado de Silos</h2>
-<div id="estadoConexion">Conectando...</div>
-<div class="grid" id="grid"></div>
+<div id="grid" class="grid"></div>
 
 <script>
 let silos = Array.from({ length: 8 }, () => ({
@@ -45,17 +86,6 @@ let silos = Array.from({ length: 8 }, () => ({
 
 const socket = io();
 
-// 🔹 Si conecta bien
-socket.on("connect", () => {
-  document.getElementById("estadoConexion").innerText = "Conectado";
-});
-
-// 🔹 Si falla conexión
-socket.on("connect_error", () => {
-  document.getElementById("estadoConexion").innerText = "Sin conexión (modo local)";
-});
-
-// 🔹 Recibe datos del servidor
 socket.on("estadoInicial", (data) => {
   silos = data;
   render();
@@ -66,52 +96,89 @@ socket.on("estadoActualizado", (data) => {
   render();
 });
 
-// 🔹 Render SIEMPRE (aunque no haya conexión)
+function color(estado) {
+  return estado === "Libre" ? "#2ecc71" : "#e74c3c";
+}
+
 function render() {
   const grid = document.getElementById("grid");
   grid.innerHTML = "";
 
   silos.forEach((silo, i) => {
+    const ocupado = silo.estado === "Ocupado";
+
     const div = document.createElement("div");
-    div.className = "silo " + (silo.estado === "Libre" ? "libre" : "ocupado");
+    div.className = "silo-container";
 
     div.innerHTML = `
-      <strong>Silo ${i + 1}</strong><br>
-      ${silo.estado}<br>
-      ${silo.variedad || ""}
-    `;
+      <svg viewBox="0 0 100 140">
+        
+        <!-- CUERPO -->
+        <rect x="20" y="30" width="60" height="70" fill="${color(silo.estado)}" stroke="black" stroke-width="2"/>
 
-    div.onclick = () => editar(i);
+        <!-- TECHO -->
+        <polygon points="20,30 50,5 80,30" fill="${color(silo.estado)}" stroke="black" stroke-width="2"/>
+
+        <!-- BASE -->
+        <rect x="25" y="100" width="50" height="25" fill="${color(silo.estado)}" stroke="black" stroke-width="2"/>
+
+        <!-- TEXTO -->
+        <text x="50" y="55" class="texto">Silo ${i+1}</text>
+        <text x="50" y="70" class="texto">${silo.estado}</text>
+        <text x="50" y="85" class="texto">${silo.variedad || "-"}</text>
+
+      </svg>
+
+      <div class="controles">
+        <input id="input-${i}" placeholder="Variedad..." ${ocupado ? "disabled" : ""} />
+        
+        <button class="ocupar" onclick="ocupar(${i})" ${ocupado ? "disabled" : ""}>
+          Ocupar
+        </button>
+
+        <button class="liberar" onclick="liberar(${i})">
+          Liberar
+        </button>
+      </div>
+    `;
 
     grid.appendChild(div);
   });
 }
 
-// 🔹 Editar silo
-function editar(i) {
-  let opcion = prompt("1: Cargar variedad\n2: Marcar libre");
+function ocupar(i) {
+  const val = document.getElementById(`input-${i}`).value;
 
-  if (opcion == "1") {
-    let variedad = prompt("Variedad:");
-    if (variedad) {
-      actualizar(i, { estado: "Ocupado", variedad });
-    }
-  } else if (opcion == "2") {
-    actualizar(i, { estado: "Libre", variedad: "" });
+  if (!val) {
+    alert("Ingresar variedad");
+    return;
   }
+
+  // 🚫 BLOQUEO
+  if (silos[i].estado === "Ocupado") {
+    alert("El silo ya se encuentra ocupado. Debe liberarlo primero.");
+    return;
+  }
+
+  actualizar(i, {
+    estado: "Ocupado",
+    variedad: val
+  });
 }
 
-// 🔹 Enviar cambio
+function liberar(i) {
+  actualizar(i, {
+    estado: "Libre",
+    variedad: ""
+  });
+}
+
 function actualizar(i, data) {
   silos[i] = data;
   render();
-
-  if (socket.connected) {
-    socket.emit("actualizarSilo", { index: i, data });
-  }
+  socket.emit("actualizarSilo", { index: i, data });
 }
 
-// 🔹 Render inicial SIEMPRE
 render();
 </script>
 
