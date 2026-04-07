@@ -50,6 +50,18 @@ body {
   text-shadow: 1px 1px 4px black;
 }
 
+/* 🔥 NUEVO (SEPARACIÓN VISUAL) */
+.titulo {
+  margin-bottom: 12px;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+.detalle {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 /* CONTROLES */
 .controles {
   background: white;
@@ -141,9 +153,11 @@ function render() {
         <div class="overlay" style="background:${color(s.estado)}"></div>
 
         <div class="info">
-          Silo ${i+1}<br>
-          ${s.variedad || "-"}<br>
-          ${Number(s.kilos || 0).toLocaleString("es-AR")} kg
+          <div class="titulo">Silo ${i+1}</div>
+          <div class="detalle">
+            ${s.variedad || "-"}<br>
+            ${Number(s.kilos || 0).toLocaleString("es-AR")} kg
+          </div>
         </div>
       </div>
 
