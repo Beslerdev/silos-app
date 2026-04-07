@@ -9,13 +9,13 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
-// 🔥 CONEXIÓN SUPABASE
+// 🔥 CONEXIÓN A SUPABASE (TU CONFIG REAL)
 const supabase = createClient(
   "https://nmthtqldqdkhgxaoqqth.supabase.com",
-  "sb_publishable_32EeEQjApc64hDWcs7pxiQ_fdeulV8M"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tdGh0cWxkcWRraGd4YW9xcXRoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTUwMjYxMSwiZXhwIjoyMDkxMDc4NjExfQ.2sUjrlgGTtTntaAXNe22FTLDdKQSFaQm7FuuyulxWdc"
 );
 
-// 🔄 OBTENER SILOS DESDE DB
+// 🔄 OBTENER SILOS
 async function obtenerSilos() {
   const { data, error } = await supabase
     .from("silos")
@@ -23,14 +23,15 @@ async function obtenerSilos() {
     .order("id");
 
   if (error) {
-    console.error("Error obteniendo silos:", error);
+    console.error("❌ Error obteniendo silos:", error);
     return [];
   }
 
+  console.log("✅ Silos cargados:", data);
   return data;
 }
 
-// 💾 ACTUALIZAR SILO EN DB
+// 💾 ACTUALIZAR SILO
 async function actualizarSiloDB(index, silo) {
   const { error } = await supabase
     .from("silos")
@@ -42,26 +43,23 @@ async function actualizarSiloDB(index, silo) {
     .eq("id", index);
 
   if (error) {
-    console.error("Error actualizando silo:", error);
+    console.error("❌ Error actualizando silo:", error);
   }
 }
 
-// 🔌 CONEXIÓN SOCKET
+// 🔌 SOCKET.IO
 io.on("connection", async (socket) => {
-  console.log("Usuario conectado");
+  console.log("🟢 Usuario conectado");
 
-  // Enviar estado inicial
+  // Estado inicial
   const silos = await obtenerSilos();
   socket.emit("estadoInicial", silos);
 
-  // Escuchar cambios
+  // Actualizaciones
   socket.on("actualizarSilo", async ({ index, data }) => {
     await actualizarSiloDB(index, data);
 
-    // Obtener estado actualizado
     const silosActualizados = await obtenerSilos();
-
-    // Emitir a todos
     io.emit("estadoActualizado", silosActualizados);
   });
 });
@@ -70,5 +68,5 @@ io.on("connection", async (socket) => {
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log("Servidor corriendo en puerto " + PORT);
+  console.log("🚀 Servidor corriendo en puerto " + PORT);
 });
