@@ -14,6 +14,7 @@ body {
   background: #f0f2f5;
 }
 
+/* GRID */
 .grid {
   display: grid;
   grid-template-columns: repeat(4, 180px);
@@ -21,6 +22,7 @@ body {
   justify-content: center;
 }
 
+/* SILO */
 .silo {
   position: relative;
 }
@@ -36,6 +38,7 @@ body {
   width: 100%;
   height: 100%;
   opacity: 0.35;
+  border-radius: 8px;
 }
 
 .info {
@@ -47,14 +50,41 @@ body {
   text-shadow: 1px 1px 4px black;
 }
 
+/* CONTROLES */
 .controles {
   background: white;
   padding: 5px;
+  border-radius: 8px;
 }
 
 button, input {
   width: 90%;
   margin-top: 4px;
+}
+
+/* MODAL */
+#modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+}
+
+.modal-box {
+  background: white;
+  width: 300px;
+  margin: 200px auto;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.modal-box button {
+  width: 40%;
+  margin: 10px;
 }
 </style>
 </head>
@@ -64,14 +94,24 @@ button, input {
 <h2>Estado de Silos</h2>
 <div id="grid" class="grid"></div>
 
+<!-- MODAL -->
+<div id="modal">
+  <div class="modal-box">
+    <p id="modalTexto">¿Vaciar silo?</p>
+    <button onclick="confirmarSi()">Sí</button>
+    <button onclick="cerrarModal()">Cancelar</button>
+  </div>
+</div>
+
 <script>
 
-// 🔥 SOCKET OK
+// SOCKET
 const socket = io(window.location.origin);
 
 let silos = [];
+let siloSeleccionado = null;
 
-// RECIBIR DATOS
+// EVENTOS
 socket.on("estadoInicial", (data) => {
   silos = data;
   render();
@@ -133,7 +173,6 @@ function cargar(i) {
 
   const s = silos[i];
 
-  // bloquear cambio variedad
   if (s.estado==="Ocupado" && v && v!==s.variedad) {
     return alert("No se puede cambiar variedad");
   }
@@ -148,18 +187,29 @@ function cargar(i) {
   });
 }
 
-// LIBERAR
+// LIBERAR (usa modal)
 function liberar(i) {
-  if (!confirm("¿Vaciar silo?")) return;
+  siloSeleccionado = i;
+  document.getElementById("modalTexto").innerText = `¿Vaciar silo ${i+1}?`;
+  document.getElementById("modal").style.display = "block";
+}
 
+// MODAL
+function cerrarModal() {
+  document.getElementById("modal").style.display = "none";
+}
+
+function confirmarSi() {
   socket.emit("actualizarSilo", {
-    index: i,
+    index: siloSeleccionado,
     data: {
       estado: "Libre",
       variedad: "",
       kilos: 0
     }
   });
+
+  cerrarModal();
 }
 
 </script>
