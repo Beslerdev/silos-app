@@ -5,11 +5,18 @@ const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
 
+// 🔥 IMPORTANTE PARA RENDER
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+  },
+});
+
+// 📁 archivos estáticos
 app.use(express.static("public"));
 
-// 🔥 CONEXIÓN A SUPABASE (TU CONFIG REAL)
+// 🔥 SUPABASE
 const supabase = createClient(
   "https://nmthtqldqdkhgxaoqqth.supabase.com",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tdGh0cWxkcWRraGd4YW9xcXRoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTUwMjYxMSwiZXhwIjoyMDkxMDc4NjExfQ.2sUjrlgGTtTntaAXNe22FTLDdKQSFaQm7FuuyulxWdc"
@@ -23,11 +30,11 @@ async function obtenerSilos() {
     .order("id");
 
   if (error) {
-    console.error("❌ Error obteniendo silos:", error);
+    console.log("❌ Error Supabase:", error);
     return [];
   }
 
-  console.log("✅ Silos cargados:", data);
+  console.log("✅ Datos:", data);
   return data;
 }
 
@@ -38,33 +45,31 @@ async function actualizarSiloDB(index, silo) {
     .update({
       estado: silo.estado,
       variedad: silo.variedad,
-      kilos: silo.kilos
+      kilos: silo.kilos,
     })
     .eq("id", index);
 
   if (error) {
-    console.error("❌ Error actualizando silo:", error);
+    console.log("❌ Error update:", error);
   }
 }
 
-// 🔌 SOCKET.IO
+// 🔌 SOCKET
 io.on("connection", async (socket) => {
-  console.log("🟢 Usuario conectado");
+  console.log("🟢 Cliente conectado");
 
-  // Estado inicial
   const silos = await obtenerSilos();
   socket.emit("estadoInicial", silos);
 
-  // Actualizaciones
   socket.on("actualizarSilo", async ({ index, data }) => {
     await actualizarSiloDB(index, data);
 
-    const silosActualizados = await obtenerSilos();
-    io.emit("estadoActualizado", silosActualizados);
+    const nuevos = await obtenerSilos();
+    io.emit("estadoActualizado", nuevos);
   });
 });
 
-// 🚀 SERVIDOR
+// 🚀 SERVER
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, "0.0.0.0", () => {
