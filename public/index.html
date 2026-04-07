@@ -22,6 +22,35 @@ body {
   justify-content: center;
 }
 
+/* TABLET */
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(2, 170px);
+  }
+}
+
+/* CELULAR */
+@media (max-width: 500px) {
+  .grid {
+    grid-template-columns: repeat(2, 45%);
+    gap: 10px;
+  }
+
+  .controles {
+    padding: 8px;
+  }
+
+  button, input {
+    width: 100%;
+    font-size: 14px;
+    padding: 6px;
+  }
+
+  .info {
+    font-size: 14px;
+  }
+}
+
 /* SILO */
 .silo {
   position: relative;
@@ -43,23 +72,11 @@ body {
 
 .info {
   position: absolute;
-  top: 40%;
+  top: 35%; /* 🔥 un poco más arriba */
   width: 100%;
   color: white;
   font-weight: bold;
   text-shadow: 1px 1px 4px black;
-}
-
-/* 🔥 NUEVO (SEPARACIÓN VISUAL) */
-.titulo {
-  margin-bottom: 12px;
-  font-size: 18px;
-  letter-spacing: 1px;
-}
-
-.detalle {
-  font-size: 14px;
-  line-height: 1.4;
 }
 
 /* CONTROLES */
@@ -153,11 +170,9 @@ function render() {
         <div class="overlay" style="background:${color(s.estado)}"></div>
 
         <div class="info">
-          <div class="titulo">Silo ${i+1}</div>
-          <div class="detalle">
-            ${s.variedad || "-"}<br>
-            ${Number(s.kilos || 0).toLocaleString("es-AR")} kg
-          </div>
+          Silo ${i+1}<br>
+          ${s.variedad || "-"}<br>
+          ${Number(s.kilos || 0).toLocaleString("es-AR")} kg
         </div>
       </div>
 
