@@ -3,35 +3,164 @@
 <head>
 <meta charset="UTF-8">
 <title>Silos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <script src="/socket.io/socket.io.js"></script>
+
+<style>
+body {
+  font-family: Arial;
+  text-align: center;
+  background: #f0f2f5;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 180px);
+  gap: 15px;
+  justify-content: center;
+}
+
+.silo {
+  position: relative;
+}
+
+.silo img {
+  width: 100%;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.35;
+}
+
+.info {
+  position: absolute;
+  top: 40%;
+  width: 100%;
+  color: white;
+  font-weight: bold;
+  text-shadow: 1px 1px 4px black;
+}
+
+.controles {
+  background: white;
+  padding: 5px;
+}
+
+button, input {
+  width: 90%;
+  margin-top: 4px;
+}
+</style>
 </head>
 
 <body>
 
 <h2>Estado de Silos</h2>
-<div id="grid"></div>
+<div id="grid" class="grid"></div>
 
 <script>
 
+// 🔥 SOCKET OK
 const socket = io(window.location.origin);
 
-console.log("🚀 Script cargado");
+let silos = [];
 
-socket.on("connect", () => {
-  console.log("🟢 CONECTADO");
-});
-
+// RECIBIR DATOS
 socket.on("estadoInicial", (data) => {
-  console.log("📦 DATOS RECIBIDOS:", data);
-
-  document.getElementById("grid").innerHTML =
-    "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
+  silos = data;
+  render();
 });
 
-socket.on("connect_error", (e) => {
-  console.log("❌ ERROR:", e.message);
+socket.on("estadoActualizado", (data) => {
+  silos = data;
+  render();
 });
+
+// COLOR
+function color(e) {
+  return e === "Libre" ? "green" : "red";
+}
+
+// RENDER
+function render() {
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+
+  silos.forEach((s, i) => {
+    const div = document.createElement("div");
+
+    div.innerHTML = `
+      <div class="silo">
+        <img src="silo.png">
+        <div class="overlay" style="background:${color(s.estado)}"></div>
+
+        <div class="info">
+          Silo ${i+1}<br>
+          ${s.variedad || "-"}<br>
+          ${Number(s.kilos || 0).toLocaleString("es-AR")} kg
+        </div>
+      </div>
+
+      <div class="controles">
+        <input id="v${i}" placeholder="Variedad"
+          value="${s.variedad || ""}"
+          ${s.estado==="Ocupado"?"disabled":""}
+        >
+
+        <input id="k${i}" type="number" placeholder="Kilos">
+
+        <button onclick="cargar(${i})">Cargar</button>
+        <button onclick="liberar(${i})">Vaciar</button>
+      </div>
+    `;
+
+    grid.appendChild(div);
+  });
+}
+
+// CARGAR
+function cargar(i) {
+  const v = document.getElementById("v"+i).value.trim();
+  const k = Number(document.getElementById("k"+i).value);
+
+  if (!k) return alert("Ingresar kilos");
+
+  const s = silos[i];
+
+  // bloquear cambio variedad
+  if (s.estado==="Ocupado" && v && v!==s.variedad) {
+    return alert("No se puede cambiar variedad");
+  }
+
+  socket.emit("actualizarSilo", {
+    index: i,
+    data: {
+      estado: "Ocupado",
+      variedad: s.variedad || v,
+      kilos: (s.kilos || 0) + k
+    }
+  });
+}
+
+// LIBERAR
+function liberar(i) {
+  if (!confirm("¿Vaciar silo?")) return;
+
+  socket.emit("actualizarSilo", {
+    index: i,
+    data: {
+      estado: "Libre",
+      variedad: "",
+      kilos: 0
+    }
+  });
+}
 
 </script>
 
