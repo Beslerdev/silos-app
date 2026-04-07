@@ -70,13 +70,25 @@ body {
   border-radius: 8px;
 }
 
+/* INFO GENERAL */
 .info {
   position: absolute;
-  top: 40%; /* 🔥 un poco más arriba */
+  top: 30%; /* 🔥 sube un poco todo el bloque */
   width: 100%;
   color: white;
   font-weight: bold;
   text-shadow: 1px 1px 4px black;
+}
+
+/* 🔥 TITULO SEPARADO */
+.titulo {
+  margin-bottom: 8px; /* 👈 separación con los datos */
+  font-size: 16px;
+}
+
+/* DATOS */
+.datos {
+  font-size: 14px;
 }
 
 /* CONTROLES */
@@ -170,9 +182,11 @@ function render() {
         <div class="overlay" style="background:${color(s.estado)}"></div>
 
         <div class="info">
-          Silo ${i+1}<br>
-          ${s.variedad || "-"}<br>
-          ${Number(s.kilos || 0).toLocaleString("es-AR")} kg
+          <div class="titulo">Silo ${i+1}</div>
+          <div class="datos">
+            ${s.variedad || "-"}<br>
+            ${Number(s.kilos || 0).toLocaleString("es-AR")} kg
+          </div>
         </div>
       </div>
 
