@@ -73,16 +73,16 @@ body {
 /* INFO GENERAL */
 .info {
   position: absolute;
-  top: 30%; /* 🔥 sube un poco todo el bloque */
+  top: 30%;
   width: 100%;
   color: white;
   font-weight: bold;
   text-shadow: 1px 1px 4px black;
 }
 
-/* 🔥 TITULO SEPARADO */
+/* TITULO */
 .titulo {
-  margin-bottom: 8px; /* 👈 separación con los datos */
+  margin-bottom: 8px;
   font-size: 16px;
 }
 
@@ -135,11 +135,14 @@ button, input {
 <h2>Estado de Silos</h2>
 <div id="grid" class="grid"></div>
 
-<!-- MODAL -->
+<!-- 🔥 MODAL MODIFICADO -->
 <div id="modal">
   <div class="modal-box">
-    <p id="modalTexto">¿Vaciar silo?</p>
-    <button onclick="confirmarSi()">Sí</button>
+    <p id="modalTexto">¿Cuántos kilos querés retirar?</p>
+
+    <input id="kilosVaciar" type="number" placeholder="Kilos a retirar">
+
+    <button onclick="confirmarSi()">Confirmar</button>
     <button onclick="cerrarModal()">Cancelar</button>
   </div>
 </div>
@@ -230,10 +233,11 @@ function cargar(i) {
   });
 }
 
-// LIBERAR (usa modal)
+// 🔥 LIBERAR MODIFICADO
 function liberar(i) {
   siloSeleccionado = i;
-  document.getElementById("modalTexto").innerText = `¿Vaciar silo ${i+1}?`;
+  document.getElementById("modalTexto").innerText = `Retirar kilos del silo ${i+1}`;
+  document.getElementById("kilosVaciar").value = "";
   document.getElementById("modal").style.display = "block";
 }
 
@@ -242,13 +246,32 @@ function cerrarModal() {
   document.getElementById("modal").style.display = "none";
 }
 
+// 🔥 CONFIRMAR MODIFICADO
 function confirmarSi() {
+  const kilosRetirar = Number(document.getElementById("kilosVaciar").value);
+  const s = silos[siloSeleccionado];
+
+  if (!kilosRetirar || kilosRetirar <= 0) {
+    return alert("Ingresar kilos válidos");
+  }
+
+  let nuevosKilos = s.kilos - kilosRetirar;
+
+  let nuevoEstado = "Ocupado";
+  let nuevaVariedad = s.variedad;
+
+  if (nuevosKilos <= 0) {
+    nuevosKilos = 0;
+    nuevoEstado = "Libre";
+    nuevaVariedad = "";
+  }
+
   socket.emit("actualizarSilo", {
     index: siloSeleccionado,
     data: {
-      estado: "Libre",
-      variedad: "",
-      kilos: 0
+      estado: nuevoEstado,
+      variedad: nuevaVariedad,
+      kilos: nuevosKilos
     }
   });
 
