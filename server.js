@@ -1,3 +1,5 @@
+console.log("URL:", process.env.SUPABASE_URL);
+console.log("KEY:", process.env.SUPABASE_KEY ? "OK" : "NO KEY");
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
