@@ -1,7 +1,3 @@
-// 🔥 FIX FETCH PARA RENDER (MUY IMPORTANTE)
-global.fetch = (...args) =>
-  import("node-fetch").then(({ default: fetch }) => fetch(...args));
-
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -16,25 +12,45 @@ const io = new Server(server, {
 
 app.use(express.static("public"));
 
-// 🔑 VARIABLES DE ENTORNO
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
+// 🔥 SUPABASE (usar variables de entorno en Render)
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
-// DEBUG (podés borrar después)
-console.log("URL:", SUPABASE_URL);
-console.log("KEY:", SUPABASE_KEY ? "OK" : "NO KEY");
+// 🔥 ESTADO GLOBAL
+let silos = [];
 
-// 🔥 CLIENTE SUPABASE
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// ===============================
+// 🔥 CARGAR ESTADO DESDE DB
+// ===============================
+async function cargarEstadoInicial() {
+  try {
+    const { data, error } = await supabase
+      .from("silos_estado")
+      .select("*")
+      .order("silo");
 
-// 🟡 ESTADO INICIAL
-let silos = Array.from({ length: 8 }, () => ({
-  estado: "Libre",
-  variedad: "",
-  kilos: 0
-}));
+    if (error) {
+      console.log("❌ Error cargando estado:", error.message);
+      return;
+    }
 
-// 🔌 SOCKET
+    silos = data.map(s => ({
+      estado: s.estado,
+      variedad: s.variedad,
+      kilos: s.kilos
+    }));
+
+    console.log("✅ Estado cargado desde Supabase");
+  } catch (err) {
+    console.log("❌ ERROR GENERAL:", err.message);
+  }
+}
+
+// ===============================
+// 🔥 SOCKET
+// ===============================
 io.on("connection", (socket) => {
   console.log("🟢 Cliente conectado");
 
@@ -46,32 +62,50 @@ io.on("connection", (socket) => {
 
       const anterior = silos[index];
 
-      // ACTUALIZAR MEMORIA
+      // 🔥 ACTUALIZA EN MEMORIA
       silos[index] = data;
 
-      // ACTUALIZAR CLIENTES
+      // 🔥 ENVIA A TODOS
       io.emit("estadoActualizado", silos);
 
-      // 🧠 DEFINIR ACCIÓN
+      // ===============================
+      // 🔥 GUARDAR ESTADO ACTUAL
+      // ===============================
+      const { error: errorEstado } = await supabase
+        .from("silos_estado")
+        .update({
+          estado: data.estado,
+          variedad: data.variedad,
+          kilos: data.kilos
+        })
+        .eq("silo", index + 1);
+
+      if (errorEstado) {
+        console.log("❌ Error guardando estado:", errorEstado.message);
+      } else {
+        console.log("💾 Estado actualizado OK");
+      }
+
+      // ===============================
+      // 🔥 GUARDAR HISTORIAL
+      // ===============================
       let accion = "Carga";
-      if (data.estado === "Libre") accion = "Vaciado";
 
-      console.log("💾 Guardando en Supabase...");
+      if (data.estado === "Libre") {
+        accion = "Vaciado";
+      }
 
-      // 🔥 INSERTAR EN BD
-      const { error } = await supabase
+      const { error: errorHistorial } = await supabase
         .from("historial_silos")
-        .insert([
-          {
-            silo: index + 1,
-            accion: accion,
-            variedad: data.variedad || anterior.variedad,
-            kilos: data.kilos,
-          }
-        ]);
+        .insert([{
+          silo: index + 1,
+          accion: accion,
+          variedad: data.variedad || anterior.variedad,
+          kilos: data.kilos,
+        }]);
 
-      if (error) {
-        console.log("❌ Error guardando historial:", error.message);
+      if (errorHistorial) {
+        console.log("❌ Error historial:", errorHistorial.message);
       } else {
         console.log("📦 Historial guardado OK");
       }
@@ -82,29 +116,13 @@ io.on("connection", (socket) => {
   });
 });
 
-// 🧪 TEST DE CONEXIÓN
-app.get("/test-db", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("historial_silos")
-      .select("*")
-      .limit(1);
-
-    if (error) {
-      console.log("ERROR DB:", error);
-      return res.send("ERROR DB");
-    }
-
-    res.send("OK DB");
-  } catch (err) {
-    console.log("ERROR FETCH:", err);
-    res.send("ERROR FETCH");
-  }
-});
-
-// 🚀 SERVER
+// ===============================
+// 🔥 INICIAR SERVIDOR
+// ===============================
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, "0.0.0.0", () => {
+server.listen(PORT, "0.0.0.0", async () => {
   console.log("🚀 Servidor corriendo en puerto " + PORT);
+
+  await cargarEstadoInicial(); // 🔥 clave
 });
