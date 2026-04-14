@@ -70,7 +70,7 @@ body {
   border-radius: 8px;
 }
 
-/* INFO GENERAL */
+/* INFO */
 .info {
   position: absolute;
   top: 30%;
@@ -80,18 +80,15 @@ body {
   text-shadow: 1px 1px 4px black;
 }
 
-/* TITULO */
 .titulo {
   margin-bottom: 8px;
   font-size: 16px;
 }
 
-/* DATOS */
 .datos {
   font-size: 14px;
 }
 
-/* OBS */
 .obs {
   font-size: 12px;
   margin-top: 5px;
@@ -159,7 +156,7 @@ const socket = io(window.location.origin);
 let silos = [];
 let siloSeleccionado = null;
 
-// 🔥 CAPACIDADES (AJUSTABLE)
+// 🔥 CAPACIDADES
 const capacidades = [
   60000, 60000, 60000, 60000,
   60000, 60000, 60000, 30000
@@ -181,7 +178,7 @@ function color(e) {
   return e === "Libre" ? "green" : "red";
 }
 
-// 🔥 PORCENTAJE
+// PORCENTAJE
 function calcularPorcentaje(kilos, capacidad) {
   if (!capacidad) return 0;
   return Math.round((kilos / capacidad) * 100);
@@ -238,7 +235,7 @@ function render() {
   });
 }
 
-// CARGAR
+// 🔥 CARGAR (con validación de capacidad)
 function cargar(i) {
   const v = document.getElementById("v"+i).value.trim();
   const k = Number(document.getElementById("k"+i).value);
@@ -247,6 +244,13 @@ function cargar(i) {
   if (!k) return alert("Ingresar kilos");
 
   const s = silos[i];
+  const capacidad = capacidades[i] || 60000;
+
+  const total = (s.kilos || 0) + k;
+
+  if (total > capacidad) {
+    return alert("Capacidad máxima alcanzada");
+  }
 
   if (s.estado==="Ocupado" && v && v!==s.variedad) {
     return alert("No se puede cambiar variedad");
@@ -257,7 +261,7 @@ function cargar(i) {
     data: {
       estado: "Ocupado",
       variedad: s.variedad || v,
-      kilos: (s.kilos || 0) + k,
+      kilos: total,
       observacion: o
     }
   });
@@ -270,23 +274,44 @@ function liberar(i) {
   document.getElementById("modal").style.display = "block";
 }
 
-// MODAL
-function cerrarModal() {
-  document.getElementById("modal").style.display = "none";
-}
-
+// 🔥 VACIADO PARCIAL
 function confirmarSi() {
+  const input = prompt("¿Cuántos kilos querés retirar?");
+
+  if (!input) return cerrarModal();
+
+  const retiro = Number(input);
+
+  if (!retiro || retiro <= 0) {
+    alert("Cantidad inválida");
+    return;
+  }
+
+  const s = silos[siloSeleccionado];
+
+  if (retiro > s.kilos) {
+    alert("No podés retirar más de lo que hay");
+    return;
+  }
+
+  const nuevoKilos = s.kilos - retiro;
+
   socket.emit("actualizarSilo", {
     index: siloSeleccionado,
     data: {
-      estado: "Libre",
-      variedad: "",
-      kilos: 0,
-      observacion: ""
+      estado: nuevoKilos === 0 ? "Libre" : "Ocupado",
+      variedad: nuevoKilos === 0 ? "" : s.variedad,
+      kilos: nuevoKilos,
+      observacion: s.observacion || ""
     }
   });
 
   cerrarModal();
+}
+
+// MODAL
+function cerrarModal() {
+  document.getElementById("modal").style.display = "none";
 }
 
 </script>
