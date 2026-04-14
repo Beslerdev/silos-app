@@ -91,6 +91,13 @@ body {
   font-size: 14px;
 }
 
+/* OBS */
+.obs {
+  font-size: 12px;
+  margin-top: 5px;
+  color: #ffd;
+}
+
 /* CONTROLES */
 .controles {
   background: white;
@@ -135,14 +142,11 @@ button, input {
 <h2>Estado de Silos</h2>
 <div id="grid" class="grid"></div>
 
-<!-- 🔥 MODAL MODIFICADO -->
+<!-- MODAL -->
 <div id="modal">
   <div class="modal-box">
-    <p id="modalTexto">¿Cuántos kilos querés retirar?</p>
-
-    <input id="kilosVaciar" type="number" placeholder="Kilos a retirar">
-
-    <button onclick="confirmarSi()">Confirmar</button>
+    <p id="modalTexto">¿Vaciar silo?</p>
+    <button onclick="confirmarSi()">Sí</button>
     <button onclick="cerrarModal()">Cancelar</button>
   </div>
 </div>
@@ -154,6 +158,12 @@ const socket = io(window.location.origin);
 
 let silos = [];
 let siloSeleccionado = null;
+
+// 🔥 CAPACIDADES (AJUSTABLE)
+const capacidades = [
+  60000, 60000, 60000, 60000,
+  60000, 60000, 60000, 30000
+];
 
 // EVENTOS
 socket.on("estadoInicial", (data) => {
@@ -171,12 +181,22 @@ function color(e) {
   return e === "Libre" ? "green" : "red";
 }
 
+// 🔥 PORCENTAJE
+function calcularPorcentaje(kilos, capacidad) {
+  if (!capacidad) return 0;
+  return Math.round((kilos / capacidad) * 100);
+}
+
 // RENDER
 function render() {
   const grid = document.getElementById("grid");
   grid.innerHTML = "";
 
   silos.forEach((s, i) => {
+
+    const capacidad = capacidades[i] || 60000;
+    const porcentaje = calcularPorcentaje(s.kilos, capacidad);
+
     const div = document.createElement("div");
 
     div.innerHTML = `
@@ -186,10 +206,14 @@ function render() {
 
         <div class="info">
           <div class="titulo">Silo ${i+1}</div>
+
           <div class="datos">
             ${s.variedad || "-"}<br>
-            ${Number(s.kilos || 0).toLocaleString("es-AR")} kg
+            ${Number(s.kilos || 0).toLocaleString("es-AR")} kg<br>
+            ${porcentaje}%
           </div>
+
+          ${s.observacion ? `<div class="obs">${s.observacion}</div>` : ""}
         </div>
       </div>
 
@@ -200,6 +224,10 @@ function render() {
         >
 
         <input id="k${i}" type="number" placeholder="Kilos">
+
+        <input id="o${i}" placeholder="Observación"
+          value="${s.observacion || ""}"
+        >
 
         <button onclick="cargar(${i})">Cargar</button>
         <button onclick="liberar(${i})">Vaciar</button>
@@ -214,6 +242,7 @@ function render() {
 function cargar(i) {
   const v = document.getElementById("v"+i).value.trim();
   const k = Number(document.getElementById("k"+i).value);
+  const o = document.getElementById("o"+i).value.trim();
 
   if (!k) return alert("Ingresar kilos");
 
@@ -228,16 +257,16 @@ function cargar(i) {
     data: {
       estado: "Ocupado",
       variedad: s.variedad || v,
-      kilos: (s.kilos || 0) + k
+      kilos: (s.kilos || 0) + k,
+      observacion: o
     }
   });
 }
 
-// 🔥 LIBERAR MODIFICADO
+// LIBERAR
 function liberar(i) {
   siloSeleccionado = i;
-  document.getElementById("modalTexto").innerText = `Retirar kilos del silo ${i+1}`;
-  document.getElementById("kilosVaciar").value = "";
+  document.getElementById("modalTexto").innerText = `¿Vaciar silo ${i+1}?`;
   document.getElementById("modal").style.display = "block";
 }
 
@@ -246,32 +275,14 @@ function cerrarModal() {
   document.getElementById("modal").style.display = "none";
 }
 
-// 🔥 CONFIRMAR MODIFICADO
 function confirmarSi() {
-  const kilosRetirar = Number(document.getElementById("kilosVaciar").value);
-  const s = silos[siloSeleccionado];
-
-  if (!kilosRetirar || kilosRetirar <= 0) {
-    return alert("Ingresar kilos válidos");
-  }
-
-  let nuevosKilos = s.kilos - kilosRetirar;
-
-  let nuevoEstado = "Ocupado";
-  let nuevaVariedad = s.variedad;
-
-  if (nuevosKilos <= 0) {
-    nuevosKilos = 0;
-    nuevoEstado = "Libre";
-    nuevaVariedad = "";
-  }
-
   socket.emit("actualizarSilo", {
     index: siloSeleccionado,
     data: {
-      estado: nuevoEstado,
-      variedad: nuevaVariedad,
-      kilos: nuevosKilos
+      estado: "Libre",
+      variedad: "",
+      kilos: 0,
+      observacion: ""
     }
   });
 
