@@ -156,7 +156,7 @@ const socket = io(window.location.origin);
 let silos = [];
 let siloSeleccionado = null;
 
-// 🔥 CAPACIDADES
+// CAPACIDADES
 const capacidades = [
   60000, 60000, 60000, 60000,
   60000, 60000, 60000, 30000
@@ -181,7 +181,7 @@ function color(e) {
 // PORCENTAJE
 function calcularPorcentaje(kilos, capacidad) {
   if (!capacidad) return 0;
-  return Math.round((kilos / capacidad) * 100);
+  return Math.round((Number(kilos || 0) / capacidad) * 100);
 }
 
 // RENDER
@@ -192,7 +192,8 @@ function render() {
   silos.forEach((s, i) => {
 
     const capacidad = capacidades[i] || 60000;
-    const porcentaje = calcularPorcentaje(s.kilos, capacidad);
+    const kilosActuales = Number(s.kilos) || 0;
+    const porcentaje = calcularPorcentaje(kilosActuales, capacidad);
 
     const div = document.createElement("div");
 
@@ -206,7 +207,7 @@ function render() {
 
           <div class="datos">
             ${s.variedad || "-"}<br>
-            ${Number(s.kilos || 0).toLocaleString("es-AR")} kg<br>
+            ${kilosActuales.toLocaleString("es-AR")} kg<br>
             ${porcentaje}%
           </div>
 
@@ -235,21 +236,24 @@ function render() {
   });
 }
 
-// 🔥 CARGAR (con validación de capacidad)
+// CARGAR
 function cargar(i) {
   const v = document.getElementById("v"+i).value.trim();
   const k = Number(document.getElementById("k"+i).value);
   const o = document.getElementById("o"+i).value.trim();
 
-  if (!k) return alert("Ingresar kilos");
+  if (isNaN(k) || k <= 0) {
+    return alert("Ingresar kilos válidos");
+  }
 
   const s = silos[i];
   const capacidad = capacidades[i] || 60000;
 
-  const total = (s.kilos || 0) + k;
+  const kilosActuales = Number(s.kilos) || 0;
+  const total = kilosActuales + k;
 
   if (total > capacidad) {
-    return alert("Capacidad máxima alcanzada");
+    return alert(`Capacidad máxima: ${capacidad.toLocaleString("es-AR")} kg`);
   }
 
   if (s.estado==="Ocupado" && v && v!==s.variedad) {
@@ -259,7 +263,7 @@ function cargar(i) {
   socket.emit("actualizarSilo", {
     index: i,
     data: {
-      estado: "Ocupado",
+      estado: total === 0 ? "Libre" : "Ocupado",
       variedad: s.variedad || v,
       kilos: total,
       observacion: o
@@ -274,27 +278,27 @@ function liberar(i) {
   document.getElementById("modal").style.display = "block";
 }
 
-// 🔥 VACIADO PARCIAL
+// VACIADO PARCIAL
 function confirmarSi() {
   const input = prompt("¿Cuántos kilos querés retirar?");
 
-  if (!input) return cerrarModal();
+  if (input === null) return cerrarModal();
 
   const retiro = Number(input);
 
-  if (!retiro || retiro <= 0) {
+  if (isNaN(retiro) || retiro <= 0) {
     alert("Cantidad inválida");
     return;
   }
 
   const s = silos[siloSeleccionado];
+  const kilosActuales = Number(s.kilos) || 0;
 
-  if (retiro > s.kilos) {
-    alert("No podés retirar más de lo que hay");
-    return;
+  if (retiro > kilosActuales) {
+    return alert("No podés retirar más de lo que hay");
   }
 
-  const nuevoKilos = s.kilos - retiro;
+  const nuevoKilos = kilosActuales - retiro;
 
   socket.emit("actualizarSilo", {
     index: siloSeleccionado,
